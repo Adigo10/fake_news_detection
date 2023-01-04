@@ -2,6 +2,9 @@ import tensorflow as tf
 from tensorflow.keras.preprocessing.text import Tokenizer
 from sklearn.model_selection import train_test_split
 import re
+import mlflow
+from mlflow.tracking import MlflowClient
+
 
 
 
@@ -45,6 +48,8 @@ def tokenize_data(news_df):
     X_train = tf.keras.preprocessing.sequence.pad_sequences(X_train, padding='post', maxlen=256)
     X_test = tf.keras.preprocessing.sequence.pad_sequences(X_test, padding='post', maxlen=256)
 
+    
+    
     return X_train, X_test, y_train, y_test
 
 
