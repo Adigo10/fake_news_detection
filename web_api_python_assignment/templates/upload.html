@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Fake News Detection</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+</head>
+<body>
+<div class="container">
+  <h2>Upload Your Data</h2>
+  <form action = "/uploader" method = "POST" enctype = "multipart/form-data">
+    <div class="form-group">
+      <label for="fake_data">Fake Data Set:</label>
+      <input type="file" class="form-control" id="fake_data" name="fake_data">
+    </div>
+    <div class="form-group">
+      <label for="true_data">True Data Set:</label>
+      <input type="file" class="form-control" id="true_data"  name="true_data">
+    </div>
+    <button type="submit" class="btn btn-default">Submit</button>
+  </form>
+  Shape is: {{ shape }}
+</div>
+</body>
+</html>
