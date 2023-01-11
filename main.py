@@ -12,24 +12,40 @@ from src.tokenize import tokenize_data
 import pickle
 import mlflow
 from mlflow.tracking import MlflowClient
+import nltk
+from sklearn.naive_bayes import MultinomialNB
+
+
+
 
 
 
 
 def main():
+    
+    
+    
     data_path = "data/"
+    
+    
     execution1 = data_read(data_path)
+    
+    
     execution2 = data_cleaning(execution1)
     
     
     
     X_train, X_test, y_train, y_test = tokenize_data(execution2)
+    #mlflow_uri = "http://mlflow_tracker:5000"
+    #mlflow.set_tracking_uri(mlflow_uri)
         
-    EXPERIMENT_NAME = "test1S"
+    EXPERIMENT_NAME = "som_NLP_assignment_temp_6"
     EXPERIMENT_ID = mlflow.create_experiment(EXPERIMENT_NAME)
-    for idx, depth in enumerate([1, 2, 5, 10, 20]):
+    for idx,alpha in enumerate([0.1, 0.4, 0.8, 1]):
 
-        history,model = build_model(X_train,y_train)
+
+        #model,history = build_model(X_train,y_train)
+        model = build_model(X_train,y_train,alpha)
             
             #pickled_model = pickle.load(open('src/model.pkl', 'rb'))
             #with open('model_pkl' , 'rb') as f:
@@ -45,9 +61,10 @@ def main():
             RUN_ID = run.info.run_id
         
         #mlflow.set_experiment(experiment_name)
-            mlflow.log_param("max_depth", 20)
+            mlflow.log_param("alpha", model.alpha)
+            mlflow.log_param("model score",model.score)
             #mlflow.log_artifact(X_train,"xtrain repo")
-            mlflow.log_param("model_type", type(model))
+            #mlflow.log_param("model_type", type(model))
             #mlflow.log_param("model_type", model.epochs())
 
 
@@ -55,7 +72,7 @@ def main():
             mlflow.log_metric("precision score ",precision_score)
             mlflow.log_metric("recall score ",recall_score)
 
-            mlflow.tensorflow.log_model(model, "classifier")
+            mlflow.sklearn.log_model(model, "classifier")
 
 
         
