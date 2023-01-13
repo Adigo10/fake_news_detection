@@ -40,7 +40,64 @@ def tokenize_data(news_df):
 
     return X_train, X_test, y_train, y_test
 
+def token_line(a):
+    string = a
+    df = pd.DataFrame([string], columns=['string_values'])
+    x=df['string_values']
 
+    def normalize(data):
+        normalized = []
+        for i in data:
+            i = i.lower()
+            # get rid of urls
+            i = re.sub('https?://\S+|www\.\S+', '', i)
+            # get rid of non words and extra spaces
+            i = re.sub('\\W', ' ', i)
+            i = re.sub('\n', '', i)
+            i = re.sub(' +', ' ', i)
+            i = re.sub('^ ', '', i)
+            i = re.sub(' $', '', i)
+            normalized.append(i)
+        return normalized
 
+    x=normalize(x)
+    max_vocab = 10000
+    tokenizer = Tokenizer(num_words=max_vocab)
+    tokenizer.fit_on_texts(x)
+
+    x = tokenizer.texts_to_sequences(x)
+
+    x= tf.keras.preprocessing.sequence.pad_sequences(x, padding='post', maxlen=257)
+
+    return x
+
+def token_file(data):
+    x=data['text']
+    
+    def normalize(data):
+        normalized = []
+        for i in data:
+            i = i.lower()
+            # get rid of urls
+            i = re.sub('https?://\S+|www\.\S+', '', i)
+            # get rid of non words and extra spaces
+            i = re.sub('\\W', ' ', i)
+            i = re.sub('\n', '', i)
+            i = re.sub(' +', ' ', i)
+            i = re.sub('^ ', '', i)
+            i = re.sub(' $', '', i)
+            normalized.append(i)
+        return normalized
+
+    x=normalize(x)
+    max_vocab = 10000
+    tokenizer = Tokenizer(num_words=max_vocab)
+    tokenizer.fit_on_texts(x)
+
+    x = tokenizer.texts_to_sequences(x)
+
+    x= tf.keras.preprocessing.sequence.pad_sequences(x, padding='post', maxlen=257)
+
+    return x
 
     
