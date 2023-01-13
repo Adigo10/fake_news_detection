@@ -2,22 +2,32 @@ from flask import Flask,render_template,url_for,request,jsonify, make_response, 
 import pandas as pd
 import numpy as np
 
-from src.reading_data import data_read
+from src.reading_data import data_read,unzip_data,file_read
 #from src.utility import set_logger, parse_config
 from src.inference import evaluate
 from src.plot import visualization_plot
 from src.preprocessing import data_cleaning
 from src.modeltraining import build_model
-from src.tokenize import tokenize_data
+from src.tokenize import tokenize_data,token_file,token_line
 from sklearn.feature_extraction.text import CountVectorizer
 import mlflow
+
+import sys
+import os
+import configparser
+import logging
+import logging.config
+import pickle
 
 app = Flask(__name__)
 
 
 @app.route('/preprocess',methods=['POST'])
 def preprocess():
-    #read data 
+    #unzip file object  
+    unzip_data(request)
+
+    #read data
     dataFakePath = request.args.get('fakepath')
     dataTruePath = request.args.get('truepath')
     data = data_read(dataFakePath,dataTruePath)
@@ -27,6 +37,7 @@ def preprocess():
     
     # tokenize data
     X_train, X_test, y_train, y_test = tokenize_data(cleanData)
+    
     
     X_train_df = pd.DataFrame(X_train) 
     X_train_df.to_csv('X_train.csv')
@@ -40,14 +51,17 @@ def preprocess():
     y_test_df = pd.DataFrame(y_test) 
     y_test_df.to_csv('y_test.csv')
     
+    dataset_dict = {"X_train": X_train, "X_test": X_test,"y_train": y_train, "y_test": y_test,}
+    with open('tokenized_data.pkl','wb') as file:
+        pickle.dump(dataset_dict, file)
+    
     
     response = make_response(jsonify({"message": "YAHOOOO!!", "severity": "delightful"}),200,)
     response.headers["Content-Type"] = "application/json"
     return response
 
-
-@app.route('/predict',methods=['POST'])
-def predict():
+@app.route('/train',methods=['POST'])
+def train():
     EXPERIMENT_NAME = request.args.get('experimentname')
     EXPERIMENT_ID = mlflow.create_experiment(EXPERIMENT_NAME)
     
@@ -69,9 +83,11 @@ def predict():
     for idx, alpha in enumerate([0.2, 0.3, 0.4, 0.5,0.6,0.7]):
         
         model = build_model(X_train,y_train,alpha)
-        
-        
-        accuracy,presision,recall,prediction = evaluate(X_test, y_test, model)
+        pickle.dump(model, open('model.pkl', 'wb'))
+
+        for idx, alpha in enumerate([0.2, 0.3, 0.4, 0.5,0.6,0.7]):
+            
+            accuracy,presision,recall,prediction = evaluate(X_test, y_test, model)
         
         ##check if we can return model
         #pickled_model = pickle.load(open('model.pkl', 'rb'))
@@ -103,13 +119,55 @@ def predict():
 
             # Track model
             mlflow.sklearn.log_model(model, "model")
+    
+    response = make_response(jsonify({"message": "YAHOOOO!!", "severity": "delightful"}),200,)
+    response.headers["Content-Type"] = "application/json"
+    return response
+
+
+@app.route('/predict',methods=['POST'])
+def predict():
+    #EXPERIMENT_NAME = request.args.get('experimentname')
+    #EXPERIMENT_ID = mlflow.get_experiment(EXPERIMENT_NAME)
+    EXPERIMENT_NAME = request.args.get('experimentname')
+
+    EXPERIMENT_ID = mlflow.get_experiment_by_name(EXPERIMENT_NAME)
+    
+    # read X_train, X_test, y_train, y_test from csv
+    X_test_df = pd.read_csv('X_test.csv')
+    X_test = X_test_df.to_numpy()
+    
+    y_test_df = pd.read_csv('y_test.csv',usecols=["class"])
+    y_test = y_test_df.to_numpy()
+
+    file_path = request.args.get('file_path')
+    data = file_read(file_path)
+    print('data type is:',type(data))
+    
+    baseModel = pickle.load(open('model.pkl', 'rb'))
+    #data cleaning
+    tokenData = token_file(data)
+
+    data['result'] = baseModel.predict(tokenData)
+
+    outname = 'result.csv'
+
+    outdir = r'C:\Users\aditya.kumar.goel\Downloads\fake_news_detection-master\data'
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
+
+    fullname = os.path.join(outdir, outname)    
+
+    data.to_csv(fullname)
+
+    resultDF=baseModel.predict(tokenData)
 
     response = make_response(jsonify({"message": "YAHOOOO!!", "severity": "delightful"}),200,)
     response.headers["Content-Type"] = "application/json"
     return response
     
 if __name__ == '__main__':
-	app.run(host='0.0.0.0',port=80)
+	app.run(host='0.0.0.0',port=5001)
     
     
     
