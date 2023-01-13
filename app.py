@@ -12,6 +12,11 @@ from src.tokenize import tokenize_data
 from sklearn.feature_extraction.text import CountVectorizer
 import mlflow
 
+import sys
+import os
+import configparser
+import logging
+import logging.config
 
 app = Flask(__name__)
 
@@ -31,6 +36,7 @@ def preprocess():
     
     # tokenize data
     X_train, X_test, y_train, y_test = tokenize_data(cleanData)
+    
     
     X_train_df = pd.DataFrame(X_train) 
     X_train_df.to_csv('X_train.csv')
@@ -72,25 +78,9 @@ def train():
     for idx, alpha in enumerate([0.2, 0.3, 0.4, 0.5,0.6,0.7]):
         
         model = build_model(X_train,y_train,alpha)
-        name = 'model' + str(idx) +'.csv'
-        y_test_df.to_csv(name)
+        pickle.dump(model, open('model.pkl', 'wb'))
 
-@app.route('/predict',methods=['POST'])
-def predict():
-    EXPERIMENT_NAME = request.args.get('experimentname')
-    EXPERIMENT_ID = mlflow.get_experiment(EXPERIMENT_NAME)
-    
-    # read X_train, X_test, y_train, y_test from csv
-    X_test_df = pd.read_csv('X_test.csv')
-    X_test = X_test_df.to_numpy()
-    
-    y_test_df = pd.read_csv('y_test.csv',usecols=["class"])
-    y_test = y_test_df.to_numpy()
-
-    
-    
-    
-    for idx, alpha in enumerate([0.2, 0.3, 0.4, 0.5,0.6,0.7]):
+        for idx, alpha in enumerate([0.2, 0.3, 0.4, 0.5,0.6,0.7]):
         name = 'model' + str(idx) +'.csv'
         model = pd.read_csv(name)
         accuracy,presision,recall,prediction = evaluate(X_test, y_test, model)
@@ -125,6 +115,41 @@ def predict():
 
             # Track model
             mlflow.sklearn.log_model(model, "model")
+
+
+@app.route('/predict',methods=['POST'])
+def predict():
+    EXPERIMENT_NAME = request.args.get('experimentname')
+    EXPERIMENT_ID = mlflow.get_experiment(EXPERIMENT_NAME)
+    
+    # read X_train, X_test, y_train, y_test from csv
+    X_test_df = pd.read_csv('X_test.csv')
+    X_test = X_test_df.to_numpy()
+    
+    y_test_df = pd.read_csv('y_test.csv',usecols=["class"])
+    y_test = y_test_df.to_numpy()
+
+    file_path = request.args.get('file_path')
+    data = file_read(file_path)
+    print('data type is:',type(data))
+    
+    baseModel = pickle.load(open('model.pkl', 'rb'))
+    #data cleaning
+    tokenData = token_file(baseModel)
+
+     data['result'] = z
+
+    outname = 'result.csv'
+
+    outdir = r'C:\Users\aditya.kumar.goel\Desktop\fake_news_detection\data'
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
+
+    fullname = os.path.join(outdir, outname)    
+
+    data.to_csv(fullname)
+
+    resultDF=baseModel.predict(tokenData)
 
     response = make_response(jsonify({"message": "YAHOOOO!!", "severity": "delightful"}),200,)
     response.headers["Content-Type"] = "application/json"
