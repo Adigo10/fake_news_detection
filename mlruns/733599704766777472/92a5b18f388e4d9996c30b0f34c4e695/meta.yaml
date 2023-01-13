@@ -1,0 +1,15 @@
+artifact_uri: file:///C:/Users/aditya.kumar.goel/Desktop/fake_news_detection/mlruns/733599704766777472/92a5b18f388e4d9996c30b0f34c4e695/artifacts
+end_time: 1673599826485
+entry_point_name: ''
+experiment_id: '733599704766777472'
+lifecycle_stage: active
+run_id: 92a5b18f388e4d9996c30b0f34c4e695
+run_name: run_1
+run_uuid: 92a5b18f388e4d9996c30b0f34c4e695
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1673599821408
+status: 3
+tags: []
+user_id: aditya.kumar.goel

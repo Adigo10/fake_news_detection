@@ -1,4 +1,3 @@
-
 import pandas as pd    
     
 
@@ -20,4 +19,3 @@ def data_cleaning(dataframes):
     news_df.drop('title', axis=1, inplace=True)
     
     return news_df
-    
