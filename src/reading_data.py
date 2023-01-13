@@ -11,8 +11,14 @@ def data_read(dataFake_path,dataReal_path):
 
     return fake_df,real_df
 
+def file_read(dataFake_path):
+    
+    dataFrame = pd.read_csv(dataFake_path)
 
-def unzip_data(request)
+
+    return dataFrame
+
+def unzip_data(request):
     inputZip = request.files['file']
     inputZip.save(inputZip.filename)  
     zipfile_ob = zipfile.ZipFile(inputZip)

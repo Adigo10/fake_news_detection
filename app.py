@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 
 from src.reading_data import data_read
-from src.reading_data import unzip_data
 #from src.utility import set_logger, parse_config
 from src.inference import evaluate
 from src.plot import visualization_plot
@@ -12,25 +11,15 @@ from src.modeltraining import build_model
 from src.tokenize import tokenize_data
 from sklearn.feature_extraction.text import CountVectorizer
 import mlflow
-import pickle
-
-import sys
-import os
-import configparser
-import logging
-import logging.config
 
 app = Flask(__name__)
-config = null
+
 
 @app.route('/preprocess',methods=['POST'])
 def preprocess():
-    #unzip file object  
-    unzip_data(request)
-
-    #read data
-    dataFakePath = config['Default']['Fake_path']
-    dataTruePath = config['Default']['True_path']
+    #read data 
+    dataFakePath = request.args.get('fakepath')
+    dataTruePath = request.args.get('truepath')
     data = data_read(dataFakePath,dataTruePath)
     
     #data cleaning
@@ -39,57 +28,51 @@ def preprocess():
     # tokenize data
     X_train, X_test, y_train, y_test = tokenize_data(cleanData)
     
-    
     X_train_df = pd.DataFrame(X_train) 
-    xTrainPath = config['Default']['x_train']
-    X_train_df.to_csv(xTrainPath)
+    X_train_df.to_csv('X_train.csv')
     
     X_test_df = pd.DataFrame(X_test) 
-    xTestPath = config['Default']['x_test']
-    X_test_df.to_csv(xTestPath)
+    X_test_df.to_csv('X_test.csv')
     
     y_train_df = pd.DataFrame(y_train) 
-    yTrainPath = config['Default']['y_train']
-    y_train_df.to_csv(yTrainPath)
+    y_train_df.to_csv('y_train.csv')
     
     y_test_df = pd.DataFrame(y_test) 
-    yTestPath = config['Default']['y_test']
-    y_test_df.to_csv(yTestPath)
+    y_test_df.to_csv('y_test.csv')
     
     
     response = make_response(jsonify({"message": "YAHOOOO!!", "severity": "delightful"}),200,)
     response.headers["Content-Type"] = "application/json"
     return response
 
-@app.route('/train',methods=['POST'])
-def train():
+
+@app.route('/predict',methods=['POST'])
+def predict():
     EXPERIMENT_NAME = request.args.get('experimentname')
     EXPERIMENT_ID = mlflow.create_experiment(EXPERIMENT_NAME)
     
     # read X_train, X_test, y_train, y_test from csv
-    xTrainPath = config['Default']['x_train']
-    X_train_df = pd.read_csv(xTrainPath)
+    X_train_df = pd.read_csv('X_train.csv')
     X_train = X_train_df.to_numpy()
+    print(np.shape(X_train)) 
     
-    xTestPath = config['Default']['x_test']
-    X_test_df = pd.read_csv(xTestPath)
+    X_test_df = pd.read_csv('X_test.csv')
     X_test = X_test_df.to_numpy()
     
-    yTrainPath = config['Default']['y_train']
-    y_train_df = pd.read_csv(yTrainPath,usecols=["class"])
+    y_train_df = pd.read_csv('y_train.csv',usecols=["class"])
     y_train = y_train_df.to_numpy()
+    print(np.shape(y_train)) 
     
-    yTestPath = config['Default']['y_test']
-    y_test_df = pd.read_csv(yTestPath,usecols=["class"])
+    y_test_df = pd.read_csv('y_test.csv',usecols=["class"])
     y_test = y_test_df.to_numpy()
     
-    alphaValues = config['Default']['alpha_values']
-    pickleFilePath = config['Default']['pickel_file']
-    for idx, alpha in enumerate(alphaValues):
+    for idx, alpha in enumerate([0.2, 0.3, 0.4, 0.5,0.6,0.7]):
         
         model = build_model(X_train,y_train,alpha)
-        pickle.dump(model, open(pickleFilePath, 'wb'))
-  
+        
+        
+        accuracy,presision,recall,prediction = evaluate(X_test, y_test, model)
+        
         ##check if we can return model
         #pickled_model = pickle.load(open('model.pkl', 'rb'))
     
@@ -124,54 +107,8 @@ def train():
     response = make_response(jsonify({"message": "YAHOOOO!!", "severity": "delightful"}),200,)
     response.headers["Content-Type"] = "application/json"
     return response
-
-
-@app.route('/predict',methods=['POST'])
-def predict():
-    EXPERIMENT_NAME = request.args.get('experimentname')
-    EXPERIMENT_ID = mlflow.get_experiment(EXPERIMENT_NAME)
-    
-    # read X_train, X_test, y_train, y_test from csv
-    xTestPath = config['Default']['x_test']
-    X_test_df = pd.read_csv(xTestPath)
-    X_test = X_test_df.to_numpy()
-    
-    yTestPath = config['Default']['y_test']
-    y_test_df = pd.read_csv(yTestPath,usecols=["class"])
-    y_test = y_test_df.to_numpy()
-
-    file_path = request.args.get('file_path')
-    data = file_read(file_path)
-    
-    pickled_model = config['Default']['pickel_file']
-    baseModel = pickle.load(open(pickled_model, 'rb'))
-    #data cleaning
-    tokenData = token_file(baseModel)
-
-    data['result'] = z
-
-    resultFN = config['Default']['result_file']
-
-    outdir = config['Default']['result_path']
-
-    if not os.path.exists(outdir):
-        os.mkdir(outdir)
-
-    fullname = os.path.join(outdir, outname)    
-
-    data.to_csv(fullname)
-
-    resultDF=baseModel.predict(tokenData)
-
-    response = make_response(jsonify({"message": "YAHOOOO!!", "severity": "delightful"}),200,)
-    response.headers["Content-Type"] = "application/json"
-    return response
     
 if __name__ == '__main__':
-   config = configparser.ConfigParser(allow_no_value=True)
-   config._interpolation = configparser.ExtendedInterpolation()
-   config.read('Config.ini')  # Read our Config File
-
 	app.run(host='0.0.0.0',port=80)
     
     
