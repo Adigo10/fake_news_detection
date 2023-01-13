@@ -1,14 +1,10 @@
 import pandas as pd 
 
-def data_read(data_path):
+def data_read(dataFake_path,dataReal_path):
     
-    fake_df = pd.read_csv(data_path+"Fake.csv")
-    real_df = pd.read_csv(data_path+"True.csv")
+    fake_df = pd.read_csv(dataFake_path)
+    real_df = pd.read_csv(dataReal_path)
 
-    fake_df = fake_df.iloc[:1500]
-
-    real_df = real_df.iloc[:1500]
-    
     print(fake_df.head())
     print(real_df.head())
 

@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import pandas as pd 
 
 
-def visualization_plot(history):
+def visualization_plot(history,mlflow):
     
     history_dict = history.history
 
@@ -19,7 +19,11 @@ def visualization_plot(history):
     plt.xlabel('Epochs', size=20)
     plt.ylabel('Loss', size=20)
     plt.legend(prop={'size': 20})
-    plt.show()
+    
+    name1 = "plot1.png"
+    plt.savefig(name1)
+    mlflow.log_artifact(name1)
+    plt.close()
     
     plt.figure(figsize=(12,9))
     plt.plot(epochs, acc, 'g', label='Training acc')
@@ -29,4 +33,7 @@ def visualization_plot(history):
     plt.ylabel('Accuracy', size=20)
     plt.legend(prop={'size': 20})
     plt.ylim((0.5,1))
-    plt.show()
+    name2 = "plot2.png"
+    plt.savefig(name2)
+    mlflow.log_artifact(name2)
+    plt.close()
