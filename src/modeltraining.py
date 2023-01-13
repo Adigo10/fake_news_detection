@@ -8,6 +8,7 @@ import pickle
 def build_model(X_train,y_train,alpha):
     mnv = MultinomialNB(alpha)
     model = mnv.fit(X_train,y_train)
+    pickle.dump(model, open('model.pkl', 'wb'))
     return model
 #    max_vocab=10000
 #    model = tf.keras.Sequential([
