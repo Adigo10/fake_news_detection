@@ -1,6 +1,6 @@
-from distutils.command.config import config
+from flask import Flask,render_template,url_for,request,jsonify, make_response, redirect, request
 import pandas as pd
-
+import numpy as np
 
 from src.reading_data import data_read
 #from src.utility import set_logger, parse_config
@@ -9,81 +9,107 @@ from src.plot import visualization_plot
 from src.preprocessing import data_cleaning
 from src.modeltraining import build_model
 from src.tokenize import tokenize_data
-import pickle
+from sklearn.feature_extraction.text import CountVectorizer
 import mlflow
-from mlflow.tracking import MlflowClient
-import nltk
-from sklearn.naive_bayes import MultinomialNB
+
+app = Flask(__name__)
 
 
+@app.route('/preprocess',methods=['POST'])
+def preprocess():
+    #read data 
+    dataFakePath = request.args.get('fakepath')
+    dataTruePath = request.args.get('truepath')
+    data = data_read(dataFakePath,dataTruePath)
+    
+    #data cleaning
+    cleanData = data_cleaning(data)
+    
+    # tokenize data
+    X_train, X_test, y_train, y_test = tokenize_data(cleanData)
+    
+    X_train_df = pd.DataFrame(X_train) 
+    X_train_df.to_csv('X_train.csv')
+    
+    X_test_df = pd.DataFrame(X_test) 
+    X_test_df.to_csv('X_test.csv')
+    
+    y_train_df = pd.DataFrame(y_train) 
+    y_train_df.to_csv('y_train.csv')
+    
+    y_test_df = pd.DataFrame(y_test) 
+    y_test_df.to_csv('y_test.csv')
+    
+    
+    response = make_response(jsonify({"message": "YAHOOOO!!", "severity": "delightful"}),200,)
+    response.headers["Content-Type"] = "application/json"
+    return response
 
 
-
-
-
-def main():
-    
-    
-    
-    data_path = "data/"
-    
-    
-    execution1 = data_read(data_path)
-    
-    
-    execution2 = data_cleaning(execution1)
-    
-    
-    
-    X_train, X_test, y_train, y_test = tokenize_data(execution2)
-    #mlflow_uri = "http://mlflow_tracker:5000"
-    #mlflow.set_tracking_uri(mlflow_uri)
-        
-    EXPERIMENT_NAME = "som_NLP_assignment_temp_6"
+@app.route('/predict',methods=['POST'])
+def predict():
+    EXPERIMENT_NAME = request.args.get('experimentname')
     EXPERIMENT_ID = mlflow.create_experiment(EXPERIMENT_NAME)
-    for idx,alpha in enumerate([0.1, 0.4, 0.8, 1]):
-
-
-        #model,history = build_model(X_train,y_train)
-        model = build_model(X_train,y_train,alpha)
-            
-            #pickled_model = pickle.load(open('src/model.pkl', 'rb'))
-            #with open('model_pkl' , 'rb') as f:
-            #model_received = pickle.load(f)
-            
-            #execution5 = visualization_plot(history)
-
-            
-        accuracy_score,precision_score,recall_score = evaluate(model,X_test,y_test)
-        
-        RUN_NAME = f"run_{idx}"
-        with mlflow.start_run(experiment_id=EXPERIMENT_ID, run_name = RUN_NAME) as run:
-            RUN_ID = run.info.run_id
-        
-        #mlflow.set_experiment(experiment_name)
-            mlflow.log_param("alpha", model.alpha)
-            mlflow.log_param("model score",model.score)
-            #mlflow.log_artifact(X_train,"xtrain repo")
-            #mlflow.log_param("model_type", type(model))
-            #mlflow.log_param("model_type", model.epochs())
-
-
-            mlflow.log_metric("accuracy score ",accuracy_score)
-            mlflow.log_metric("precision score ",precision_score)
-            mlflow.log_metric("recall score ",recall_score)
-
-            mlflow.sklearn.log_model(model, "classifier")
-
-
-        
-        
-        #mlflow.log_param("n_layers", model.n_layers)
-        #mlflow.log_param("n_hidden", model.n_hidden)
     
+    # read X_train, X_test, y_train, y_test from csv
+    X_train_df = pd.read_csv('X_train.csv')
+    X_train = X_train_df.to_numpy()
+    print(np.shape(X_train)) 
+    
+    X_test_df = pd.read_csv('X_test.csv')
+    X_test = X_test_df.to_numpy()
+    
+    y_train_df = pd.read_csv('y_train.csv',usecols=["class"])
+    y_train = y_train_df.to_numpy()
+    print(np.shape(y_train)) 
+    
+    y_test_df = pd.read_csv('y_test.csv',usecols=["class"])
+    y_test = y_test_df.to_numpy()
+    
+    for idx, alpha in enumerate([0.2, 0.3, 0.4, 0.5,0.6,0.7]):
+        
+        model = build_model(X_train,y_train,alpha)
+        
+        
+        accuracy,presision,recall,prediction = evaluate(X_test, y_test, model)
+        
+        ##check if we can return model
+        #pickled_model = pickle.load(open('model.pkl', 'rb'))
+    
+        # Start MLflow
+        RUN_NAME = f"run_{idx}"
+        with mlflow.start_run(experiment_id=EXPERIMENT_ID, run_name=RUN_NAME) as run:
+            # Retrieve run id
+            RUN_ID = run.info.run_id
 
+            #visualization_plot(model,mlflow) # logging plots in ML Flow
+            # Track parameters
+            mlflow.log_param("alpha", alpha)
+            
+            # Track parameters
+            mlflow.log_param("score", model.score)
 
-        #mlflow_uri = "http://mlflow_tracker:5000"
-        #mlflow.set_tracking_uri(mlflow_uri)
+            # Track metrics
+            mlflow.log_metric("accuracy", accuracy)
+            
+            # Track metrics
+            mlflow.log_metric("presision", presision)
+            
+            # Track metrics
+            mlflow.log_metric("recall", recall)
+            
+            # Track metrics
+            #mlflow.log_metric("prediction", prediction)
+
+            # Track model
+            mlflow.sklearn.log_model(model, "model")
+
+    response = make_response(jsonify({"message": "YAHOOOO!!", "severity": "delightful"}),200,)
+    response.headers["Content-Type"] = "application/json"
+    return response
+    
+if __name__ == '__main__':
+	app.run(host='0.0.0.0',port=80)
 
         
 
