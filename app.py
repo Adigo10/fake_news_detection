@@ -12,12 +12,16 @@ from src.tokenize import tokenize_data
 from sklearn.feature_extraction.text import CountVectorizer
 import mlflow
 
+
 app = Flask(__name__)
 
 
 @app.route('/preprocess',methods=['POST'])
 def preprocess():
-    #read data 
+    #unzip file object  
+    unzip_data(request)
+
+    #read data
     dataFakePath = request.args.get('fakepath')
     dataTruePath = request.args.get('truepath')
     data = data_read(dataFakePath,dataTruePath)
