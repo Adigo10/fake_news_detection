@@ -2,58 +2,68 @@ from flask import Flask,render_template,url_for,request,jsonify, make_response, 
 import pandas as pd
 import numpy as np
 
-from src.reading_data import data_read,unzip_data,file_read
+from src.reading_data import data_read,file_read
+from src.reading_data import unzip_data
 #from src.utility import set_logger, parse_config
 from src.inference import evaluate
 from src.plot import visualization_plot
 from src.preprocessing import data_cleaning
 from src.modeltraining import build_model
-from src.tokenize import tokenize_data,token_file,token_line
+from src.tokenize import tokenize_data
+from src.tokenize import token_file
 from sklearn.feature_extraction.text import CountVectorizer
 import mlflow
+import pickle
 
 import sys
 import os
 import configparser
 import logging
 import logging.config
-import pickle
 
 app = Flask(__name__)
-
+config  = configparser.ConfigParser(allow_no_value=True)
+config.interpolation = configparser.ExtendedInterpolation()
+config.read('Config.ini')  # Read our Config File
 
 @app.route('/preprocess',methods=['POST'])
 def preprocess():
     #unzip file object  
+    inputZip = request.files['file']
+    print(inputZip.filename)
     unzip_data(request)
 
     #read data
-    dataFakePath = request.args.get('fakepath')
-    dataTruePath = request.args.get('truepath')
+    dataFakePath = config['Default']['Fake_path']
+    dataTruePath = config['Default']['True_path']
     data = data_read(dataFakePath,dataTruePath)
     
     #data cleaning
     cleanData = data_cleaning(data)
     
     # tokenize data
-    X_train, X_test, y_train, y_test = tokenize_data(cleanData)
+    X_train, X_test, y_train, y_test,tokenizer = tokenize_data(cleanData)
     
+    pickleFilePath = config['Default']['pickel_file']
     
+
+    pickle.dump(tokenizer, open(pickleFilePath, 'wb'))
+
     X_train_df = pd.DataFrame(X_train) 
-    X_train_df.to_csv('X_train.csv')
+    xTrainPath = config['Default']['x_train']
+    X_train_df.to_csv(xTrainPath)
     
     X_test_df = pd.DataFrame(X_test) 
-    X_test_df.to_csv('X_test.csv')
+    xTestPath = config['Default']['x_test']
+    X_test_df.to_csv(xTestPath)
     
     y_train_df = pd.DataFrame(y_train) 
-    y_train_df.to_csv('y_train.csv')
+    yTrainPath = config['Default']['y_train']
+    y_train_df.to_csv(yTrainPath)
     
     y_test_df = pd.DataFrame(y_test) 
-    y_test_df.to_csv('y_test.csv')
-    
-    dataset_dict = {"X_train": X_train, "X_test": X_test,"y_train": y_train, "y_test": y_test,}
-    with open('tokenized_data.pkl','wb') as file:
-        pickle.dump(dataset_dict, file)
+    yTestPath = config['Default']['y_test']
+    y_test_df.to_csv(yTestPath)
     
     
     response = make_response(jsonify({"message": "YAHOOOO!!", "severity": "delightful"}),200,)
@@ -65,30 +75,48 @@ def train():
     EXPERIMENT_NAME = request.args.get('experimentname')
     EXPERIMENT_ID = mlflow.create_experiment(EXPERIMENT_NAME)
     
-    # read X_train, X_test, y_train, y_test from csv
-    X_train_df = pd.read_csv('X_train.csv')
-    X_train = X_train_df.to_numpy()
-    print(np.shape(X_train)) 
     
-    X_test_df = pd.read_csv('X_test.csv')
+   
+    xTestPath = config['Default']['x_test']
+    X_test_df = pd.read_csv(xTestPath)
     X_test = X_test_df.to_numpy()
     
-    y_train_df = pd.read_csv('y_train.csv',usecols=["class"])
+
+    yTrainPath = config['Default']['y_train']
+    y_train_df = pd.read_csv(yTrainPath,usecols=["class"])
     y_train = y_train_df.to_numpy()
-    print(np.shape(y_train)) 
     
-    y_test_df = pd.read_csv('y_test.csv',usecols=["class"])
+   
+    yTestPath = config['Default']['y_test']
+    y_test_df = pd.read_csv(yTestPath,usecols=["class"])
     y_test = y_test_df.to_numpy()
     
+    
+    
+    # read X_train, X_test, y_train, y_test from csv
+    xTrainPath = config['Default']['x_train']
+    X_train_df = pd.read_csv(xTrainPath)
+    X_train = X_train_df.to_numpy()
+
+
+    
+
+    alphaValues = config['Default']['alpha_values']
+    pickleFilePath = config['Default']['pickel_file']
+
+    model = None
     for idx, alpha in enumerate([0.2, 0.3, 0.4, 0.5,0.6,0.7]):
         
         model = build_model(X_train,y_train,alpha)
-        pickle.dump(model, open('model.pkl', 'wb'))
-
-        for idx, alpha in enumerate([0.2, 0.3, 0.4, 0.5,0.6,0.7]):
-            
-            accuracy,presision,recall,prediction = evaluate(X_test, y_test, model)
         
+        tokenizer = {}
+        with open(pickleFilePath,"rb") as f:
+            tokenizer = pickle.load(f)
+            
+        pickelObj = {'tokenizer':tokenizer,'model': model}
+        
+        pickle.dump(pickelObj, open(pickleFilePath, 'wb'))
+  
         ##check if we can return model
         #pickled_model = pickle.load(open('model.pkl', 'rb'))
     
@@ -106,20 +134,20 @@ def train():
             mlflow.log_param("score", model.score)
 
             # Track metrics
-            mlflow.log_metric("accuracy", accuracy)
+            #mlflow.log_metric("accuracy", accuracy)
             
             # Track metrics
-            mlflow.log_metric("presision", presision)
+            #mlflow.log_metric("presision", presision)
             
             # Track metrics
-            mlflow.log_metric("recall", recall)
+            #mlflow.log_metric("recall", recall)
             
             # Track metrics
             #mlflow.log_metric("prediction", prediction)
 
             # Track model
             mlflow.sklearn.log_model(model, "model")
-    
+
     response = make_response(jsonify({"message": "YAHOOOO!!", "severity": "delightful"}),200,)
     response.headers["Content-Type"] = "application/json"
     return response
@@ -127,47 +155,55 @@ def train():
 
 @app.route('/predict',methods=['POST'])
 def predict():
-    #EXPERIMENT_NAME = request.args.get('experimentname')
-    #EXPERIMENT_ID = mlflow.get_experiment(EXPERIMENT_NAME)
     EXPERIMENT_NAME = request.args.get('experimentname')
-
     EXPERIMENT_ID = mlflow.get_experiment_by_name(EXPERIMENT_NAME)
     
     # read X_train, X_test, y_train, y_test from csv
-    X_test_df = pd.read_csv('X_test.csv')
+    xTestPath = config['Default']['x_test']
+    X_test_df = pd.read_csv(xTestPath)
     X_test = X_test_df.to_numpy()
     
-    y_test_df = pd.read_csv('y_test.csv',usecols=["class"])
+    yTestPath = config['Default']['y_test']
+    y_test_df = pd.read_csv(yTestPath,usecols=["class"])
     y_test = y_test_df.to_numpy()
 
     file_path = request.args.get('file_path')
     data = file_read(file_path)
-    print('data type is:',type(data))
     
-    baseModel = pickle.load(open('model.pkl', 'rb'))
-    #data cleaning
-    tokenData = token_file(data)
+    pickleFilePath = config['Default']['pickel_file']
+    pickelObj = pickle.load(open(pickleFilePath, 'rb'))
+    # baseModel =  pickelObj[1]
+    # print(baseModel)
+    dataObj = pickelObj['tokenizer']['tokenizer']['tokenizer']['tokenizer']['tokenizer']['tokenizer']
+    pickleArray = []
+    
+    for item in dataObj:
+        pickleArray.append(item)
+   
+    tokenData = token_file(data,pickleArray[0])
 
-    data['result'] = baseModel.predict(tokenData)
+    data['result'] = pickleArray[1].predict(tokenData)
 
-    outname = 'result.csv'
 
-    outdir = r'C:\Users\aditya.kumar.goel\Downloads\fake_news_detection-master\data'
+    resultFN = config['Default']['result_file']
+
+    outdir = config['Default']['result_path']
+
     if not os.path.exists(outdir):
-        os.mkdir(outdir)
+         os.mkdir(outdir)
 
-    fullname = os.path.join(outdir, outname)    
+    fullname = os.path.join(outdir, resultFN)    
 
     data.to_csv(fullname)
-
-    resultDF=baseModel.predict(tokenData)
 
     response = make_response(jsonify({"message": "YAHOOOO!!", "severity": "delightful"}),200,)
     response.headers["Content-Type"] = "application/json"
     return response
     
 if __name__ == '__main__':
-	app.run(host='0.0.0.0',port=5001)
+   
+
+	app.run(host='0.0.0.0',port=80)
     
     
     

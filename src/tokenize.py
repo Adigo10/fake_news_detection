@@ -19,6 +19,8 @@ def normalize(data):
             normalized.append(i)
         return normalized
 
+        
+
 def tokenize_data(news_df):
     features = news_df['text']
     targets = news_df['class']
@@ -30,6 +32,8 @@ def tokenize_data(news_df):
         
     max_vocab = 10000
     tokenizer = Tokenizer(num_words=max_vocab)
+    
+
     tokenizer.fit_on_texts(X_train)
 
     X_train = tokenizer.texts_to_sequences(X_train)
@@ -38,31 +42,14 @@ def tokenize_data(news_df):
     X_train = tf.keras.preprocessing.sequence.pad_sequences(X_train, padding='post', maxlen=256)
     X_test = tf.keras.preprocessing.sequence.pad_sequences(X_test, padding='post', maxlen=256)
 
-    return X_train, X_test, y_train, y_test
+    return X_train, X_test, y_train, y_test, tokenizer
 
-def token_line(a):
+def token_line(a,tokenizer):
     string = a
     df = pd.DataFrame([string], columns=['string_values'])
     x=df['string_values']
-
-    def normalize(data):
-        normalized = []
-        for i in data:
-            i = i.lower()
-            # get rid of urls
-            i = re.sub('https?://\S+|www\.\S+', '', i)
-            # get rid of non words and extra spaces
-            i = re.sub('\\W', ' ', i)
-            i = re.sub('\n', '', i)
-            i = re.sub(' +', ' ', i)
-            i = re.sub('^ ', '', i)
-            i = re.sub(' $', '', i)
-            normalized.append(i)
-        return normalized
-
     x=normalize(x)
-    max_vocab = 10000
-    tokenizer = Tokenizer(num_words=max_vocab)
+    
     tokenizer.fit_on_texts(x)
 
     x = tokenizer.texts_to_sequences(x)
@@ -71,27 +58,12 @@ def token_line(a):
 
     return x
 
-def token_file(data):
+def token_file(data,tokenizer):
     x=data['text']
     
-    def normalize(data):
-        normalized = []
-        for i in data:
-            i = i.lower()
-            # get rid of urls
-            i = re.sub('https?://\S+|www\.\S+', '', i)
-            # get rid of non words and extra spaces
-            i = re.sub('\\W', ' ', i)
-            i = re.sub('\n', '', i)
-            i = re.sub(' +', ' ', i)
-            i = re.sub('^ ', '', i)
-            i = re.sub(' $', '', i)
-            normalized.append(i)
-        return normalized
-
     x=normalize(x)
-    max_vocab = 10000
-    tokenizer = Tokenizer(num_words=max_vocab)
+    
+    
     tokenizer.fit_on_texts(x)
 
     x = tokenizer.texts_to_sequences(x)
