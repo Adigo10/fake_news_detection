@@ -102,21 +102,13 @@ def train():
     
 
     alphaValues = config['Default']['alpha_values']
-    pickleFilePath = config['Default']['pickel_file']
+    
 
     model = None
     for idx, alpha in enumerate([0.2, 0.3, 0.4, 0.5,0.6,0.7]):
         
         model = build_model(X_train,y_train,alpha)
         
-        tokenizer = {}
-        with open(pickleFilePath,"rb") as f:
-            tokenizer = pickle.load(f)
-            
-        pickelObj = {'tokenizer':tokenizer,'model': model}
-        
-        pickle.dump(pickelObj, open(pickleFilePath, 'wb'))
-  
         ##check if we can return model
         #pickled_model = pickle.load(open('model.pkl', 'rb'))
     
@@ -148,6 +140,15 @@ def train():
             # Track model
             mlflow.sklearn.log_model(model, "model")
 
+    tokenizer = {}
+    pickleFilePath = config['Default']['pickel_file']
+    with open(pickleFilePath,"rb") as f:
+        tokenizer = pickle.load(f)
+        
+    pickelObj = {'tokenizer':tokenizer,'model': model}
+    
+    pickle.dump(pickelObj, open(pickleFilePath, 'wb'))
+
     response = make_response(jsonify({"message": "YAHOOOO!!", "severity": "delightful"}),200,)
     response.headers["Content-Type"] = "application/json"
     return response
@@ -174,15 +175,13 @@ def predict():
     pickelObj = pickle.load(open(pickleFilePath, 'rb'))
     # baseModel =  pickelObj[1]
     # print(baseModel)
-    dataObj = pickelObj['tokenizer']['tokenizer']['tokenizer']['tokenizer']['tokenizer']['tokenizer']
-    pickleArray = []
+    dataObj = pickelObj['tokenizer']
+    modelObj  = pickelObj['model']
     
-    for item in dataObj:
-        pickleArray.append(item)
-   
-    tokenData = token_file(data,pickleArray[0])
 
-    data['result'] = pickleArray[1].predict(tokenData)
+    tokenData = token_file(data,dataObj)
+
+    data['result'] = modelObj.predict(tokenData)
 
 
     resultFN = config['Default']['result_file']
@@ -193,7 +192,7 @@ def predict():
          os.mkdir(outdir)
 
     fullname = os.path.join(outdir, resultFN)    
-
+    data['result'] = data['result'].map({0:'Fake' ,1:'True'})
     data.to_csv(fullname)
 
     response = make_response(jsonify({"message": "YAHOOOO!!", "severity": "delightful"}),200,)
